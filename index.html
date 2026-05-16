@@ -1,0 +1,81 @@
+<!doctype html><meta charset=utf-8><meta name=viewport content=width=device-width,initial-scale=1><title>Coulomb pendulos</title><body style="font-family:sans-serif;background:#fff;margin:0;padding:14px;">
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
+<h2 style="margin:0;font-size:16px;color:#0f172a;">Péndulos con cargas (demo en GitHub Pages)</h2>
+<button onclick="window.print()" style="border-radius:10px;border:1px solid #e5e7eb;padding:8px 10px;background:#2563eb;color:white;font-weight:700;cursor:pointer;">Imprimir/Guardar PDF</button>
+</div>
+<div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;">
+<label>n: <input id=n type=range min=2 max=6 value=2></label><span id=nv>2</span>
+<label>q (µC): <input id=q type=range min=1 max=10 value=4></label><span id=qv>4</span>
+</div>
+<canvas id=c width=900 height=520 style="border:1px solid #e5e7eb;border-radius:14px;margin-top:10px;max-width:100%;box-shadow:0 12px 30px rgba(15,23,42,0.07);"></canvas>
+<div id=out style="margin-top:10px;color:#475569;font-size:14px;"></div>
+<script>
+const k=8.9875517923e9,g=9.81;
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+function solve(n,qUc,mGr=10,Lcm=20){
+ const q=qUc*1e-6,m=mGr/1000,L=Lcm/100;
+ function pos(theta){
+  const r=L*Math.sin(theta),z=L*Math.cos(theta);
+  const pts=[];
+  for(let i=0;i<n;i++){const phi=2*Math.PI*i/n;pts.push({x:r*Math.cos(phi),y:r*Math.sin(phi),z});}
+  return {pts,r,z};
+ }
+ function Fr(theta){
+  const {pts}=pos(theta),p0=pts[0];
+  let fx=0,fy=0,fz=0;
+  for(let j=1;j<n;j++){
+   const p=pts[j],dx=p0.x-p.x,dy=p0.y-p.y,dz=p0.z-p.z;
+   const r2=dx*dx+dy*dy+dz*dz,r=Math.sqrt(r2);
+   const F=k*q*q/r2;
+   fx+=F*(dx/r);fy+=F*(dy/r);fz+=F*(dz/r);
+  }
+  return Math.hypot(fx,fy);
+ }
+ let lo=0.001,hi=Math.PI/2-0.001;
+ const target=(t)=>Math.tan(t)-(Fr(t)/(m*g));
+ if(target(lo)>=0) return {theta:0,r:0,z:L,d:0};
+ if(target(lo)*target(hi)>0) hi=hi*0.2;
+ for(let i=0;i<60;i++){
+  const mid=(lo+hi)/2;
+  const s=target(mid);
+  if(target(lo)*s<0)hi=mid; else lo=mid;
+ }
+ const theta=(lo+hi)/2;
+ const p=pos(theta);
+ const d=2*p.r*Math.sin(Math.PI/n);
+ return {theta,p,d};
+}
+function draw(n,q){
+ ctx.clearRect(0,0,c.width,c.height);
+ const s=solve(n,q);
+ const center={x:c.width/2,y:70};
+ ctx.fillStyle='#64748b';ctx.font='12px sans-serif';ctx.fillText('Vista lateral',20,18);
+ const scale=220;
+ const px=center.x + s.p.r*scale;
+ const py=center.y + s.p.z*scale;
+ const px2=center.x - s.p.r*scale;
+ const py2=center.y + s.p.z*scale;
+ ctx.strokeStyle='#94a3b8';ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(center.x,center.y);ctx.lineTo(px,py);
+ ctx.moveTo(center.x,center.y);ctx.lineTo(px2,py2);
+ ctx.stroke();
+ ctx.fillStyle='#2563eb';
+ ctx.beginPath();ctx.arc(px,py,9,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();ctx.arc(px2,py2,9,0,Math.PI*2);ctx.fill();
+ const center2={x:c.width/2,y:c.height-150};
+ ctx.fillStyle='#64748b';ctx.fillText('Top view',20,c.height-210);
+ const rTop=s.p.r*scale*1.5;
+ ctx.strokeStyle='#e2e8f0';ctx.lineWidth=1.5;
+ ctx.beginPath();ctx.arc(center2.x,center2.y,rTop,0,Math.PI*2);ctx.stroke();
+ for(let i=0;i<n;i++){
+  const phi=2*Math.PI*i/n;
+  const x=center2.x + rTop*Math.cos(phi);
+  const y=center2.y + rTop*Math.sin(phi);
+  ctx.beginPath();ctx.arc(x,y,8,0,Math.PI*2);ctx.fill();
+ }
+ document.getElementById('out').innerHTML=`θ≈${(s.theta*180/Math.PI).toFixed(2)}°<br>r≈${(s.p.r*100).toFixed(2)} cm<br>d(vecinos)≈${(s.d*100).toFixed(2)} cm`;
+}
+const n= document.getElementById('n'),q=document.getElementById('q');
+function update(){document.getElementById('nv').textContent=n.value;document.getElementById('qv').textContent=q.value;draw(parseInt(n.value),parseFloat(q.value));}
+n.oninput=q.oninput=update;update();
+</script></body>
